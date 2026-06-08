@@ -1,0 +1,25 @@
+{
+  "hperfor": {
+    "broker_address": "www.hperfor.com",
+    "broker_port": 1883,
+    "client_id": "test",
+    "username": "ePa_CB",
+    "password": "123456"
+  },
+  "thingsboard": {
+    "host": "192.168.4.244",
+    "port": 1883
+  },
+  "devices": [
+    {
+      "name": "3F-Screen-Left",
+      "hperfor_client_id": "JE1X600479",
+      "tb_device_token": "GwuT3v0dmoPdoFo6raYF"
+    },
+    {
+      "name": "3F-Screen-Right",
+      "hperfor_client_id": "JE1X600645",
+      "tb_device_token": "Bxpw42p5vGCvft8cjRAx"
+    }
+  ]
+}

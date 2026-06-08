@@ -1,0 +1,11 @@
+[project]
+name = "hperfor-epa-plugin"
+version = "0.1.0"
+description = "Bridge hperfor ePa devices to ThingsBoard over MQTT."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mmh3>=5.2.0",
+    "paho-mqtt>=2.1.0",
+    "tb-mqtt-client>=1.11.0",
+]

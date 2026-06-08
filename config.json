@@ -1,0 +1,36 @@
+{
+  "hperfor": {
+    "broker_address": "expo.i.uassist.cn",
+    "broker_port": 11883,
+    "client_id": "hperfor-tb-transformer",
+    "username": "bestlink",
+    "password": "bestlink"
+  },
+  "thingsboard": {
+    "host": "192.168.4.244",
+    "port": 1883
+  },
+  "devices": [
+    {
+      "name": "3F-Screen-Left",
+      "hperfor_client_id": "JE1X600479",
+      "tb_device_token": "GwuT3v0dmoPdoFo6raYF"
+    },
+    {
+      "name": "3F-Screen-Right",
+      "hperfor_client_id": "JE1X600645",
+      "tb_device_token": "Bxpw42p5vGCvft8cjRAx"
+    },
+    {
+      "name": "3F-Light-North",
+      "hperfor_client_id": "JE1X600827",
+      "tb_device_token": "iyo12OMubH9unLjMjK2M"
+    },
+    {
+      "name": "3F-Light-South",
+      "hperfor_client_id": "JE1X600826",
+      "tb_device_token": "dgDqIJ5twSwhmmlawTJH"
+    }
+  ]
+}
+
