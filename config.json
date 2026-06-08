@@ -22,14 +22,14 @@
       "tb_device_token": "Bxpw42p5vGCvft8cjRAx"
     },
     {
-      "name": "3F-Light-North",
-      "hperfor_client_id": "JE1X600827",
-      "tb_device_token": "iyo12OMubH9unLjMjK2M"
-    },
-    {
       "name": "3F-Light-South",
       "hperfor_client_id": "JE1X600826",
       "tb_device_token": "dgDqIJ5twSwhmmlawTJH"
+    },
+    {
+      "name": "3F-Light-North",
+      "hperfor_client_id": "JE1X600827",
+      "tb_device_token": "iyo12OMubH9unLjMjK2M"
     }
   ]
 }
