@@ -3,7 +3,8 @@
 ## 背景
 
 海普发设备的通信协议与ThingsBoard 差异较大，因此需要开发插件进行适配。
-ThingsBoard不支持心跳包；海普发设备大约每20秒会有心跳包，收到心跳包应立即回应同样的消息。
+ThingsBoard不支持心跳包；海普发设备大约每20秒会有心跳包，收到心跳包应立即回应同样的消息，收不到消息就会重启。
+
 海普发设备消息格式为
 
 ```JSON
@@ -20,7 +21,8 @@ ThingsBoard发送RPC的格式为
 
 ## 插件的原理
 
-服务端开启一个MQTT服务,11883端口; 海普发设备连接到这个端口，将所有的消息转发到 ThingsBoard 的 MQTT 服务端，ThingsBoard 再将消息转发给海普发设备。
+服务端采用开启一个MQTT服务，目前采用的是 EMQX-enterprise，http://expo.i.uassist.cn:18083/ 用户名 admin 密码: Njjh0059
+将 1883 端口映射到 11883端口; 海普发设备连接到这个端口；本程序作为桥接程序，也连到设备，并侦听所有设备的消息，将所有的消息转发到 ThingsBoard 的 MQTT 服务端，ThingsBoard 再将消息转发给海普发设备。
 
 ## 海普发设备由公网环境转换到内网环境
 
@@ -62,6 +64,13 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
 }
 ```
 
+### 在内部服务器上添加设备
+
+![alt text](docs\{337AC956-3A3C-41F1-9710-514C085B837C}.png)
+
+用户名为 {{hperfor-ClientID}}
+密码为 bestlink
+
 ### 修改服务器为本地服务器
 
 注意，测试表明，服务器如果直接使用内网的ip地址，会出现异常的情况，因此最好将服务器的地址通过域名方式映射。
@@ -73,6 +82,7 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
     "bid":321,"mid":"6F9619FF-8B86-D011-B42D-00C04FC964FF",
     "clientid":"JE1X600645",
     "host":"expo.i.uassist.cn",
+    "dns": 1
     "port":"11883",
     "username":"JE1X600645",
     "password":"bestlink",
@@ -83,13 +93,19 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
 
 ### 修改后的测试
 
-将MQTT.fx的服务器调整到
+在MQTT.fx的添加服务器调整到
 Broker Address: 192.168.4.244
 Broker Port: 11883
 Client ID: bestlink
 
 User Name: bestlink
 Password: bestlink
+
+添加 Subscribe:
+from/epa/JE1X600827
+to/epa/JE1X600827
+
+应该可以观察到周期性的 bid = 101 的消息
 
 ## 开发要求
 
