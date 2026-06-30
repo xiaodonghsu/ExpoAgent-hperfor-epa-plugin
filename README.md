@@ -64,7 +64,9 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
 }
 ```
 
-### 在内部服务器上添加设备
+### 在内部服务器MQTT上添加设备
+
+http://192.168.4.244:18083
 
 ![alt text](docs\{337AC956-3A3C-41F1-9710-514C085B837C}.png)
 
@@ -77,6 +79,8 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
 
 使用 Publish 发送消息到 to/epa/{hperfor-ClientID}，例如：
 
+#### 域名方式
+
 ```JSON
 {
     "bid":321,"mid":"6F9619FF-8B86-D011-B42D-00C04FC964FF",
@@ -88,6 +92,21 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
     "password":"bestlink",
     "subscribe":"to/epa/JE1X600645",
     "publish":"from/epa/JE1X600645"
+}
+```
+
+#### 本地IP方式
+
+```JSON
+{"bid":321,"mid":"6F9619FF-8B86-D011-B42D-00C04FC964FF",
+"clientid":"JE1X600647",
+"host":"192.168.4.244",
+"dns":0,
+"port":"11883",
+"username":"JE1X600647",
+"password":"bestlink",
+"subscribe":"to/epa/JE1X600647",
+"publish":"from/epa/JE1X600647"
 }
 ```
 
@@ -201,7 +220,7 @@ mqtt port: 11883
 
 ### 开关开合闸（202接口）
 
-MoterOperation： value=1->开  value=2->关 
+MoterOperation： value=1->关  value=2->开 
 
 #### 发布消息
 

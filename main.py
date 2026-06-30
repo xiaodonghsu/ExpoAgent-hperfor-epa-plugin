@@ -98,6 +98,15 @@ def flatten_child_payload(child: dict[str, Any]) -> dict[str, Any]:
     return telemetry
 
 
+def build_ack_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "result": True,
+        "mid": payload.get("mid"),
+        "bid": payload.get("bid"),
+        "message": 0,
+    }
+
+
 class ThingsBoardDeviceBridge:
     def __init__(
         self,
@@ -395,15 +404,15 @@ class HperforBridgeService:
         LOGGER.info("Received hperfor message topic=%s payload=%s", topic, payload_text)
 
         client_id = topic.rsplit("/", 1)[-1]
-        bridge = self.tb_bridges.get(client_id)
-        if bridge is None:
-            LOGGER.warning("No ThingsBoard mapping found for client_id=%s", client_id)
-            return
-
         try:
             payload = json.loads(payload_text)
         except json.JSONDecodeError:
             LOGGER.exception("Invalid JSON from hperfor topic=%s", topic)
+            return
+
+        bridge = self.tb_bridges.get(client_id)
+        if bridge is None:
+            LOGGER.warning("No ThingsBoard mapping found for client_id=%s", client_id)
             return
 
         bid = payload.get("bid")
@@ -412,7 +421,12 @@ class HperforBridgeService:
             bridge.send_telemetry({"heartbeat": utc_now_iso()})
             return
 
-        if bid in {201, 202, 208}:
+        if bid == 201:
+            self.publish_to_hperfor(client_id, build_ack_payload(payload))
+            self._forward_state_payload(bridge, payload, fallback_client_id=client_id)
+            return
+
+        if bid in {202, 208}:
             self._forward_state_payload(bridge, payload, fallback_client_id=client_id)
             return
 
