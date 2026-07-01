@@ -391,8 +391,8 @@ docker pull nuc10.i.uassist.cn:5000/hperfor-epa-plugin:latest
 推荐先在宿主机准备目录，并把 [config.example.json](/C:/Files/Documents/Project/playground-bestlink-expo/hperfor-epa-plugin/config.example.json) 复制成实际配置文件：
 
 ```powershell
-New-Item -ItemType Directory -Force -Path .\docker-data\config, .\docker-data\logs
-Copy-Item .\config.example.json .\docker-data\config\config.json
+New-Item -ItemType Directory -Force -Path .\data\config, .\data\logs
+Copy-Item .\config.example.json .\data\config\config.json
 ```
 
 运行容器：
@@ -400,8 +400,8 @@ Copy-Item .\config.example.json .\docker-data\config\config.json
 ```powershell
 docker run -d `
   --name hperfor-epa-plugin `
-  -v ${PWD}\docker-data\config:/data/config `
-  -v ${PWD}\docker-data\logs:/data/logs `
+  -v ${PWD}\data\config:/data/config `
+  -v ${PWD}\data\logs:/data/logs `
   hperfor-epa-plugin
 ```
 
@@ -413,7 +413,7 @@ docker run -d `
   -e HPERFOR_PLUGIN_CONFIG=/data/config/config.json `
   -e LOG_FILE=/data/logs/custom.log `
   -e LOG_LEVEL=DEBUG `
-  -v ${PWD}\docker-data\config:/data/config `
-  -v ${PWD}\docker-data\logs:/data/logs `
+  -v ${PWD}\data\config:/data/config `
+  -v ${PWD}\data\logs:/data/logs `
   hperfor-epa-plugin
 ```
