@@ -386,21 +386,33 @@ uv run python main.py
 
 项目现在可以直接构建为 Docker 镜像运行。
 
-构建镜像：
+构建和推送镜像：
 
-```powershell
+```shell
 docker build -t hperfor-epa-plugin .
-```
-
-```push
 
 docker tag hperfor-epa-plugin nuc10.i.uassist.cn:5000/hperfor-epa-plugin:latest
 
 docker push nuc10.i.uassist.cn:5000/hperfor-epa-plugin:latest
 ```
 
-```pull
+下载和运行镜像
+
+```shell
+
+docker stop hperfor-epa-plugin
+docker rm hperfor-epa-plugin
 docker pull nuc10.i.uassist.cn:5000/hperfor-epa-plugin:latest
+
+cd ~/hperfor-epa-plugin
+
+docker run -d \
+  --name hperfor-epa-plugin \
+  -v ${PWD}/data/config:/data/config \
+  -v ${PWD}/data/logs:/data/logs \
+  nuc10.i.uassist.cn:5000/hperfor-epa-plugin:latest
+
+docker logs -f hperfor-epa-plugin
 
 ```
 

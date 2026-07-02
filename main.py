@@ -346,7 +346,10 @@ class HperforBridgeService:
         if device is None:
             raise ValueError(f"No hperfor device mapping found for client_id={client_id}")
 
-        topic = f"to/epa/{device.hperfor_gateway_id}"
+        self.publish_to_hperfor_gateway(device.hperfor_gateway_id, payload)
+
+    def publish_to_hperfor_gateway(self, gateway_id: str, payload: dict[str, Any]) -> None:
+        topic = f"to/epa/{gateway_id}"
         raw_payload = json.dumps(payload, ensure_ascii=False)
         LOGGER.info("Publish to hperfor topic=%s payload=%s", topic, raw_payload)
         result = self.hperfor_client.publish(topic, raw_payload, qos=0)
@@ -422,15 +425,22 @@ class HperforBridgeService:
             LOGGER.exception("Invalid JSON from hperfor topic=%s", topic)
             return
 
+        bid = payload.get("bid")
+        if bid == 101:
+            self.publish_to_hperfor_gateway(gateway_id, payload)
+            bridges = self._bridges_for_gateway(gateway_id)
+            if not bridges:
+                LOGGER.warning("No ThingsBoard mapping found for gateway_id=%s payload=%s", gateway_id, payload)
+                return
+
+            heartbeat = {"heartbeat": utc_now_iso()}
+            for bridge in bridges:
+                bridge.send_telemetry(heartbeat)
+            return
+
         fallback_bridge, fallback_client_id = self._resolve_fallback_device(gateway_id, payload)
         if fallback_bridge is None or fallback_client_id is None:
             LOGGER.warning("No ThingsBoard mapping found for gateway_id=%s payload=%s", gateway_id, payload)
-            return
-
-        bid = payload.get("bid")
-        if bid == 101:
-            self.publish_to_hperfor(fallback_client_id, payload)
-            fallback_bridge.send_telemetry({"heartbeat": utc_now_iso()})
             return
 
         if bid == 201:
@@ -451,6 +461,13 @@ class HperforBridgeService:
             return
 
         LOGGER.warning("Unsupported hperfor bid=%s payload=%s", bid, payload)
+
+    def _bridges_for_gateway(self, gateway_id: str) -> list[ThingsBoardDeviceBridge]:
+        return [
+            self.tb_bridges[device.hperfor_client_id]
+            for device in self.config.devices
+            if device.hperfor_gateway_id == gateway_id
+        ]
 
     def _resolve_fallback_device(
         self,

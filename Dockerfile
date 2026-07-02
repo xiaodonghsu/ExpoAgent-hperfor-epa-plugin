@@ -1,9 +1,10 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    HPERFOR_PLUGIN_CONFIG=/data/config/config.json \
+ENV UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"
+ENV PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
+ENV PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
+
+ENV HPERFOR_PLUGIN_CONFIG=/data/config/config.json \
     LOG_FILE=/data/logs/hperfor-epa-plugin.log \
     LOG_LEVEL=INFO
 
