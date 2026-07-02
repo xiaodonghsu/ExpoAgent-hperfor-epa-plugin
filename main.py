@@ -25,6 +25,7 @@ DEFAULT_CONFIG_PATH = Path("config.json")
 class DeviceConfig:
     name: str
     hperfor_client_id: str
+    hperfor_gateway_id: str
     tb_device_token: str
 
 
@@ -62,6 +63,12 @@ def load_config() -> AppConfig:
         DeviceConfig(
             name=item["name"],
             hperfor_client_id=item.get("hperfor_client_id") or item["hperfor-ClientID"],
+            hperfor_gateway_id=(
+                item.get("hperfor_gateway_id")
+                or item.get("hperfor-GatewayID")
+                or item.get("hperfor_client_id")
+                or item["hperfor-ClientID"]
+            ),
             tb_device_token=item.get("tb_device_token") or item["tb-DeviceToken"],
         )
         for item in data["devices"]
@@ -275,6 +282,7 @@ class HperforBridgeService:
         self.devices_by_client_id = {
             device.hperfor_client_id: device for device in config.devices
         }
+        self.gateway_ids = sorted({device.hperfor_gateway_id for device in config.devices})
         self.tb_bridges = {
             device.hperfor_client_id: ThingsBoardDeviceBridge(
                 device=device,
@@ -334,7 +342,11 @@ class HperforBridgeService:
             bridge.disconnect()
 
     def publish_to_hperfor(self, client_id: str, payload: dict[str, Any]) -> None:
-        topic = f"to/epa/{client_id}"
+        device = self.devices_by_client_id.get(client_id)
+        if device is None:
+            raise ValueError(f"No hperfor device mapping found for client_id={client_id}")
+
+        topic = f"to/epa/{device.hperfor_gateway_id}"
         raw_payload = json.dumps(payload, ensure_ascii=False)
         LOGGER.info("Publish to hperfor topic=%s payload=%s", topic, raw_payload)
         result = self.hperfor_client.publish(topic, raw_payload, qos=0)
@@ -376,8 +388,8 @@ class HperforBridgeService:
             LOGGER.error("Failed to connect hperfor MQTT broker: %s", reason_code)
             return
         LOGGER.info("Connected to hperfor MQTT broker")
-        for client_id in self.devices_by_client_id:
-            topic = f"from/epa/{client_id}"
+        for gateway_id in self.gateway_ids:
+            topic = f"from/epa/{gateway_id}"
             client.subscribe(topic, qos=0)
             LOGGER.info("Subscribed hperfor topic %s", topic)
 
@@ -403,34 +415,62 @@ class HperforBridgeService:
         payload_text = message.payload.decode("utf-8", errors="replace")
         LOGGER.info("Received hperfor message topic=%s payload=%s", topic, payload_text)
 
-        client_id = topic.rsplit("/", 1)[-1]
+        gateway_id = topic.rsplit("/", 1)[-1]
         try:
             payload = json.loads(payload_text)
         except json.JSONDecodeError:
             LOGGER.exception("Invalid JSON from hperfor topic=%s", topic)
             return
 
-        bridge = self.tb_bridges.get(client_id)
-        if bridge is None:
-            LOGGER.warning("No ThingsBoard mapping found for client_id=%s", client_id)
+        fallback_bridge, fallback_client_id = self._resolve_fallback_device(gateway_id, payload)
+        if fallback_bridge is None or fallback_client_id is None:
+            LOGGER.warning("No ThingsBoard mapping found for gateway_id=%s payload=%s", gateway_id, payload)
             return
 
         bid = payload.get("bid")
         if bid == 101:
-            self.publish_to_hperfor(client_id, payload)
-            bridge.send_telemetry({"heartbeat": utc_now_iso()})
+            self.publish_to_hperfor(fallback_client_id, payload)
+            fallback_bridge.send_telemetry({"heartbeat": utc_now_iso()})
             return
 
         if bid == 201:
-            self.publish_to_hperfor(client_id, build_ack_payload(payload))
-            self._forward_state_payload(bridge, payload, fallback_client_id=client_id)
+            self.publish_to_hperfor(fallback_client_id, build_ack_payload(payload))
+            self._forward_state_payload(
+                fallback_bridge,
+                payload,
+                fallback_client_id=fallback_client_id,
+            )
             return
 
         if bid in {202, 208}:
-            self._forward_state_payload(bridge, payload, fallback_client_id=client_id)
+            self._forward_state_payload(
+                fallback_bridge,
+                payload,
+                fallback_client_id=fallback_client_id,
+            )
             return
 
         LOGGER.warning("Unsupported hperfor bid=%s payload=%s", bid, payload)
+
+    def _resolve_fallback_device(
+        self,
+        gateway_id: str,
+        payload: dict[str, Any],
+    ) -> tuple[ThingsBoardDeviceBridge | None, str | None]:
+        children = payload.get("Children")
+        if isinstance(children, list):
+            for child in children:
+                if not isinstance(child, dict):
+                    continue
+                child_client_id = child.get("ClientID")
+                if isinstance(child_client_id, str) and child_client_id in self.tb_bridges:
+                    return self.tb_bridges[child_client_id], child_client_id
+
+        for device in self.config.devices:
+            if device.hperfor_gateway_id == gateway_id:
+                return self.tb_bridges[device.hperfor_client_id], device.hperfor_client_id
+
+        return None, None
 
     def _forward_state_payload(
         self,
@@ -456,15 +496,23 @@ class HperforBridgeService:
             return
 
         for child in children:
+            if not isinstance(child, dict):
+                LOGGER.warning(
+                    "Skip non-object child for client_id=%s: %s",
+                    fallback_client_id,
+                    child,
+                )
+                continue
+
             child_client_id = child.get("ClientID", fallback_client_id)
             bridge = self.tb_bridges.get(child_client_id)
             if bridge is None:
                 LOGGER.warning(
-                    "Received payload for unmapped client_id=%s, fallback to topic client_id=%s",
+                    "Skip payload for unmapped client_id=%s, fallback_client_id=%s",
                     child_client_id,
                     fallback_client_id,
                 )
-                bridge = fallback_bridge
+                continue
 
             if payload.get("bid") == 208:
                 mid = payload.get("mid")

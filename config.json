@@ -14,21 +14,25 @@
     {
       "name": "3F-Screen-Left",
       "hperfor_client_id": "JE1X600479",
+      "hperfor_gateway_id": "JE1X600479",
       "tb_device_token": "GwuT3v0dmoPdoFo6raYF"
     },
     {
       "name": "3F-Screen-Right",
       "hperfor_client_id": "JE1X600645",
+      "hperfor_gateway_id": "JE1X600645",
       "tb_device_token": "Bxpw42p5vGCvft8cjRAx"
     },
     {
       "name": "3F-Light-South",
-      "hperfor_client_id": "JE1X600869",
+      "hperfor_client_id": "JR1X400278",
+      "hperfor_gateway_id": "GWGE100345",
       "tb_device_token": "dgDqIJ5twSwhmmlawTJH"
     },
     {
       "name": "3F-Light-North",
-      "hperfor_client_id": "JE1X600870",
+      "hperfor_client_id": "JR1X400279",
+      "hperfor_gateway_id": "GWGE100345",
       "tb_device_token": "iyo12OMubH9unLjMjK2M"
     }
   ]

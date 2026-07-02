@@ -64,6 +64,15 @@ MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa
 }
 ```
 
+## 独立ePa设备
+
+独立设备， ethernet - 控制器
+
+## epa_gateway 网关设备
+
+网关设备，例如ethernet - 485网关下带控制器的情况
+
+
 ### 在内部服务器MQTT上添加设备
 
 http://192.168.4.244:18083
@@ -241,19 +250,31 @@ MoterOperation： value=1->关  value=2->开
 
 ```JSON
 {
-    "SysTime": "2023-05-04 09:53:56",
-    "bid": 202,
-    "mid": "6F9619FF-8B86-D011-B42D-00C04FC964FF",
-    "Children": [{
-            "ClientID": "JE1X600479",
-            "Voltage": [0, 0, 0, 0],
-            "Current": [0, 0, 0, 0],
-            "Power": [0, 0, 0, 0],
-            "Energy": [0, 0, 0, 0],
-            "Temperature": [6182, 0, 0, 0],
-            "ElectricStatus": 0,
-            "SwitchStatus": 0,
-            "Mode": 0
+    "SysTime":    "2022-02-14 08:34:55",
+    "bid":    202,
+    "mid":    "6F9619FF-8B86-D011-B42D-00C04FC964FF",
+    "Children":    [{
+            "ClientID":    "JR1X400278",
+            "Voltage":    [0, 0, 0, 0],
+            "Current":    [0, 0, 0, 0],
+            "Power":    [0, 0, 0, 0],
+            "Energy":    [0, 0, 0, 0],
+            "Temperature":    [3122, 0, 0, 0],
+            "ElectricStatus":    0,
+            "SwitchStatus":    0,
+            "Mode":    0,
+            "UsartComm":    0
+        }, {
+            "ClientID":    "JR1X400279",
+            "Voltage":    [0, 0, 0, 0],
+            "Current":    [0, 0, 0, 0],
+            "Power":    [0, 0, 0, 0],
+            "Energy":    [0, 0, 0, 0],
+            "Temperature":    [3250, 0, 0, 0],
+            "ElectricStatus":    0,
+            "SwitchStatus":    0,
+            "Mode":    0,
+            "UsartComm":    0
         }]
 }
 ```
