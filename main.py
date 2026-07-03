@@ -19,6 +19,8 @@ from tb_device_mqtt import TBDeviceMqttClient
 
 LOGGER = logging.getLogger("hperfor-epa-plugin")
 DEFAULT_CONFIG_PATH = Path("config.json")
+GATEWAY_COMMAND_RESPONSE_TIMEOUT_SECONDS = 3.0
+GATEWAY_COMMAND_SETTLE_DELAY_SECONDS = 0.2
 
 
 @dataclass(slots=True)
@@ -27,6 +29,8 @@ class DeviceConfig:
     hperfor_client_id: str
     hperfor_gateway_id: str
     tb_device_token: str
+    delay_on: int = 0
+    delay_off: int = 0
 
 
 @dataclass(slots=True)
@@ -59,6 +63,15 @@ def load_config() -> AppConfig:
         )
 
     data = json.loads(config_path.read_text(encoding="utf-8"))
+
+    def read_delay(item: dict[str, Any], key: str) -> int:
+        value = item.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"devices.{key} must be an integer")
+        if value < 0:
+            raise ValueError(f"devices.{key} must be greater than or equal to 0")
+        return value
+
     devices = [
         DeviceConfig(
             name=item["name"],
@@ -70,6 +83,8 @@ def load_config() -> AppConfig:
                 or item["hperfor-ClientID"]
             ),
             tb_device_token=item.get("tb_device_token") or item["tb-DeviceToken"],
+            delay_on=read_delay(item, "delay_on"),
+            delay_off=read_delay(item, "delay_off"),
         )
         for item in data["devices"]
     ]
@@ -169,6 +184,26 @@ class ThingsBoardDeviceBridge:
         self.publish_command(self.device.hperfor_client_id, payload)
         return payload
 
+    def _publish_switch_payload(self, payload: dict[str, Any]) -> None:
+        self.publish_command(self.device.hperfor_client_id, payload)
+
+    def _run_delayed_switch(self, payload: dict[str, Any], delay_seconds: int) -> None:
+        LOGGER.info(
+            "Executing delayed switch for %s: delay=%s payload=%s",
+            self.device.name,
+            delay_seconds,
+            payload,
+        )
+        time.sleep(delay_seconds)
+        self._publish_switch_payload(payload)
+
+    def _device_delay_for_status(self, status: str) -> int:
+        if status == "on":
+            return self.device.delay_on
+        if status == "off":
+            return self.device.delay_off
+        raise ValueError("status must be 'on' or 'off'")
+
     def _run_switch_delay(self, target_status: str, delay_seconds: float, switch_status: int) -> None:
         LOGGER.info(
             "Executing switch_delay for %s: target_status=%s delay=%s current_switch_status=%s",
@@ -200,10 +235,28 @@ class ThingsBoardDeviceBridge:
                 operation = {"on": 1, "off": 2}.get(status)
                 if operation is None:
                     raise ValueError("switch.status must be 'on' or 'off'")
-                payload = self._publish_switch(operation)
+                delay = self._device_delay_for_status(status)
+                payload = self._build_switch_payload(operation)
+                if delay > 0:
+                    worker = threading.Thread(
+                        target=self._run_delayed_switch,
+                        args=(payload, delay),
+                        daemon=True,
+                        name=f"switch-{status}-{self.device.hperfor_client_id}",
+                    )
+                    worker.start()
+                else:
+                    self._publish_switch_payload(payload)
                 self.client.send_rpc_reply(
                     request_id,
-                    {"success": True, "mid": payload["mid"], "bid": payload["bid"]},
+                    {
+                        "success": True,
+                        "mid": payload["mid"],
+                        "bid": payload["bid"],
+                        "scheduled": delay > 0,
+                        "status": status,
+                        "delay": delay,
+                    },
                 )
                 return
             elif method in ["switch_delay", "screen_shutdown", "screen_startup"]:
@@ -219,9 +272,11 @@ class ThingsBoardDeviceBridge:
                 delay = params.get("delay")
                 if not isinstance(delay, (int, float)):
                     if method == "screen_shutdown":
-                        delay = 60
+                        delay = self._device_delay_for_status("off")
                     elif method == "screen_startup":
-                        delay = 0
+                        delay = self._device_delay_for_status("on")
+                    else:
+                        delay = self._device_delay_for_status(status)
                 if delay < 0:
                     delay = - delay
 
@@ -279,10 +334,14 @@ class HperforBridgeService:
         self._cleanup_done = False
         self._state_lock = threading.Lock()
         self._pending_data_requests: dict[str, tuple[threading.Event, dict[str, Any]]] = {}
+        self._pending_command_responses: dict[str, threading.Event] = {}
         self.devices_by_client_id = {
             device.hperfor_client_id: device for device in config.devices
         }
         self.gateway_ids = sorted({device.hperfor_gateway_id for device in config.devices})
+        self._gateway_command_locks = {
+            gateway_id: threading.Lock() for gateway_id in self.gateway_ids
+        }
         self.tb_bridges = {
             device.hperfor_client_id: ThingsBoardDeviceBridge(
                 device=device,
@@ -346,7 +405,33 @@ class HperforBridgeService:
         if device is None:
             raise ValueError(f"No hperfor device mapping found for client_id={client_id}")
 
-        self.publish_to_hperfor_gateway(device.hperfor_gateway_id, payload)
+        self.publish_to_hperfor_gateway_serialized(device.hperfor_gateway_id, payload)
+
+    def publish_to_hperfor_gateway_serialized(
+        self,
+        gateway_id: str,
+        payload: dict[str, Any],
+        timeout: float = GATEWAY_COMMAND_RESPONSE_TIMEOUT_SECONDS,
+    ) -> None:
+        lock = self._gateway_command_locks.setdefault(gateway_id, threading.Lock())
+        mid = payload.get("mid")
+        response_event = threading.Event() if isinstance(mid, str) else None
+
+        with lock:
+            if response_event is not None:
+                with self._state_lock:
+                    self._pending_command_responses[mid] = response_event
+            try:
+                self.publish_to_hperfor_gateway(gateway_id, payload)
+                if response_event is not None and not response_event.wait(timeout):
+                    raise TimeoutError(
+                        f"Timed out waiting for hperfor response gateway_id={gateway_id} mid={mid}"
+                    )
+                time.sleep(GATEWAY_COMMAND_SETTLE_DELAY_SECONDS)
+            finally:
+                if response_event is not None:
+                    with self._state_lock:
+                        self._pending_command_responses.pop(mid, None)
 
     def publish_to_hperfor_gateway(self, gateway_id: str, payload: dict[str, Any]) -> None:
         topic = f"to/epa/{gateway_id}"
@@ -444,7 +529,7 @@ class HperforBridgeService:
             return
 
         if bid == 201:
-            self.publish_to_hperfor(fallback_client_id, build_ack_payload(payload))
+            self.publish_to_hperfor_gateway(gateway_id, build_ack_payload(payload))
             self._forward_state_payload(
                 fallback_bridge,
                 payload,
@@ -495,6 +580,13 @@ class HperforBridgeService:
         payload: dict[str, Any],
         fallback_client_id: str,
     ) -> None:
+        mid = payload.get("mid")
+        if isinstance(mid, str):
+            with self._state_lock:
+                pending_command_response = self._pending_command_responses.get(mid)
+            if pending_command_response is not None:
+                pending_command_response.set()
+
         if payload.get("result") is False:
             LOGGER.warning(
                 "Skip forwarding message without Children for client_id=%s: %s",
@@ -532,7 +624,6 @@ class HperforBridgeService:
                 continue
 
             if payload.get("bid") == 208:
-                mid = payload.get("mid")
                 if isinstance(mid, str):
                     with self._state_lock:
                         pending_request = self._pending_data_requests.get(mid)
