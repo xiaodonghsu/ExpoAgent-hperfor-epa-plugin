@@ -13,16 +13,16 @@
   "devices": [
     {
       "name": "3F-Screen-Left",
-      "hperfor_client_id": "JE1X600479",
-      "hperfor_gateway_id": "JE1X600479",
+      "hperfor_client_id": "JR1X400281",
+      "hperfor_gateway_id": "GWGE100345",
       "tb_device_token": "GwuT3v0dmoPdoFo6raYF",
       "delay_on": 0,
       "delay_off": 60
     },
     {
       "name": "3F-Screen-Right",
-      "hperfor_client_id": "JE1X600645",
-      "hperfor_gateway_id": "JE1X600645",
+      "hperfor_client_id": "JR1X400282",
+      "hperfor_gateway_id": "GWGE100345",
       "tb_device_token": "Bxpw42p5vGCvft8cjRAx",
       "delay_on": 0,
       "delay_off": 60

@@ -2,10 +2,14 @@
 
 ## 背景
 
-海普发设备的通信协议与ThingsBoard 差异较大，因此需要开发插件进行适配。
-ThingsBoard不支持心跳包；海普发设备大约每20秒会有心跳包，收到心跳包应立即回应同样的消息，收不到消息就会重启。
+海普发设备的通信协议与ThingsBoard 差异较大：
 
-海普发设备消息格式为
+- ThingsBoard不支持心跳包；海普发设备大约每20秒会有心跳包，收到心跳包应立即回应同样的消息，收不到消息就会重启。
+- 海普发消息格式 from\epa\{{hperfor-clientid}} to\epa\{{hperfor-clientid}} 与 Thingsboard 的RPC不兼容
+
+需要开发插件进行适配。
+
+## 海普发设备消息格式
 
 ```JSON
 {"bid": xxx
@@ -21,8 +25,29 @@ ThingsBoard发送RPC的格式为
 
 ## 插件的原理
 
-服务端采用开启一个MQTT服务，目前采用的是 EMQX-enterprise，http://expo.i.uassist.cn:18083/ 用户名 admin 密码: Njjh0059
-将 1883 端口映射到 11883端口; 海普发设备连接到这个端口；本程序作为桥接程序，也连到设备，并侦听所有设备的消息，将所有的消息转发到 ThingsBoard 的 MQTT 服务端，ThingsBoard 再将消息转发给海普发设备。
+服务端采用开源的 MQTT 服务 —— EMQX-enterprise(http://192.168.4.244:18083/) 
+EMQX 将 1883 端口映射到 11883端口; 海普发设备连接到这个端口；本程序作为桥接程序，也连到设备，并侦听所有设备的消息，将所有的消息转发到 ThingsBoard 的 MQTT 服务端，ThingsBoard 再将消息转发给海普发设备。
+
+## EMQX的安装和配置
+
+本地的1883已经被thingsboard 占用, 修改为11883端口
+
+宿主机端口      容器端口        协议    用途    适用场景
+1883    1883    TCP     标准 MQTT       物联网设备、内部应用（明文）
+8883    8883    TCP (SSL/TLS)   安全 MQTT       公网设备、对安全要求高的应用（加密）
+8083    8083    WS      WebSocket MQTT  浏览器应用（明文）
+8084    8084    WSS     安全 WebSocket MQTT     浏览器应用（加密）
+18083   18083   HTTP    Dashboard 管理控制台    管理员通过浏览器管理和监控 EMQX
+
+```bash
+docker pull emqx/emqx-enterprise:6.2.0
+
+mkdir -p ~/hperfor-epa-plugin/emqx-data  # 数据库地址
+
+sudo chown -R 1000:1000 ~/hperfor-epa-plugin/emqx-data
+
+docker run -d --name emqx-enterprise -p 11883:1883 -p 8083:8083 -p 8084:8084 -p 8883:8883 -p 18083:18083 -v /home/jh/hperfor-epa-plugin/emqx-data:/opt/emqx/data/mnesia emqx/emqx-enterprise:6.2.0
+```
 
 ## 海普发设备由公网环境转换到内网环境
 
@@ -56,7 +81,7 @@ to/epa/{hperfor-ClientID}
 
 ### 测试
 
-MQTT.fx 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa/xxxx
+MQTTX 按照以上参数配置, 添加订阅主题后,会定期收到 from/epa/xxxx
 
 ```JSON
 {
@@ -371,13 +396,13 @@ $env:HPERFOR_PLUGIN_CONFIG = "config.json"
 
 安装依赖：
 
-```powershell
+```shell
 uv sync
 ```
 
 启动程序：
 
-```powershell
+```shell
 uv run python main.py
 ```
 
@@ -429,14 +454,14 @@ docker logs -f hperfor-epa-plugin
 
 推荐先在宿主机准备目录，并把 [config.example.json](/C:/Files/Documents/Project/playground-bestlink-expo/hperfor-epa-plugin/config.example.json) 复制成实际配置文件：
 
-```powershell
+```shell
 New-Item -ItemType Directory -Force -Path .\data\config, .\data\logs
 Copy-Item .\config.example.json .\data\config\config.json
 ```
 
 运行容器：
 
-```powershell
+```shell
 docker run -d `
   --name hperfor-epa-plugin `
   -v ${PWD}\data\config:/data/config `
@@ -446,7 +471,7 @@ docker run -d `
 
 如果你想自定义配置文件或日志文件位置，也可以覆盖环境变量：
 
-```powershell
+```shell
 docker run -d `
   --name hperfor-epa-plugin `
   -e HPERFOR_PLUGIN_CONFIG=/data/config/config.json `
