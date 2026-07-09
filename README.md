@@ -451,6 +451,7 @@ docker logs -f hperfor-epa-plugin
 
 - 配置文件路径：`/data/config/config.json`
 - 日志文件路径：`/data/logs/hperfor-epa-plugin.log`
+- 日志按天切分：每天午夜生成一个新的日志文件，默认保留 30 天历史日志
 
 推荐先在宿主机准备目录，并把 [config.example.json](/C:/Files/Documents/Project/playground-bestlink-expo/hperfor-epa-plugin/config.example.json) 复制成实际配置文件：
 
@@ -476,6 +477,7 @@ docker run -d `
   --name hperfor-epa-plugin `
   -e HPERFOR_PLUGIN_CONFIG=/data/config/config.json `
   -e LOG_FILE=/data/logs/custom.log `
+  -e LOG_BACKUP_COUNT=30 `
   -e LOG_LEVEL=DEBUG `
   -v ${PWD}\data\config:/data/config `
   -v ${PWD}\data\logs:/data/logs `

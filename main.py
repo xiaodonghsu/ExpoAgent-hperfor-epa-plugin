@@ -10,6 +10,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Any, Callable
 
@@ -642,7 +643,19 @@ def setup_logging() -> None:
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(log_path, encoding="utf-8"))
+        try:
+            backup_count = int(os.getenv("LOG_BACKUP_COUNT", "30"))
+        except ValueError:
+            backup_count = 30
+        handlers.append(
+            TimedRotatingFileHandler(
+                log_path,
+                when="midnight",
+                interval=1,
+                backupCount=backup_count,
+                encoding="utf-8",
+            )
+        )
 
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO").upper(),

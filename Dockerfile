@@ -6,6 +6,7 @@ ENV PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
 
 ENV HPERFOR_PLUGIN_CONFIG=/data/config/config.json \
     LOG_FILE=/data/logs/hperfor-epa-plugin.log \
+    LOG_BACKUP_COUNT=30 \
     LOG_LEVEL=INFO
 
 WORKDIR /app
